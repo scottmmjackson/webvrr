@@ -1,0 +1,25 @@
+{
+  "name": "webvrr",
+  "version": "1.0.0",
+  "description": "WebVR for R",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Scott Jackson <scott@rstudio.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-es2016": "^6.24.1",
+    "babel-preset-es2017": "^6.24.1",
+    "babel-preset-stage-1": "^6.24.1",
+    "babel-preset-stage-2": "^6.24.1",
+    "babelify": "^8.0.0",
+    "bower": "^1.8.2",
+    "browserify": "^14.5.0",
+    "gulp": "^3.9.1",
+    "mocha": "^4.1.0",
+    "vinyl-source-stream": "^2.0.0"
+  }
+}

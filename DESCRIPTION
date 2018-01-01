@@ -1,0 +1,12 @@
+Package: webvrr
+Type: Package
+Title: WebVR For R
+Version: 0.0.1
+Author: Scott Jackson <scottmmjackson@gmail.com>
+Maintainer: Scott Jackson <scottmmjackson@gmail.com>
+Description: Htmlwidget interface into the WebVR spec.
+License: GPL-3
+Imports: htmlwidgets
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.0.1

@@ -1,0 +1,13 @@
+.vr-button-container {
+  text-align: center;
+}
+
+.vr-force-container {
+  text-align: center;
+}
+
+.vr-ui-container {
+  text-align: center;
+  top: -100px;
+  position: relative;
+}

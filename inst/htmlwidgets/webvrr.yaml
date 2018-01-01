@@ -1,0 +1,20 @@
+dependencies:
+  - name: threejs
+    src: "htmlwidgets/lib/three.js"
+    version: "0.89.0"
+    script:
+     - "build/three.min.js"
+     - "examples/js/controls/VRControls.js"
+     - "examples/js/effects/VREffect.js"
+  - name: "webvr-ui"
+    src: "htmlwidgets/lib/webvr-ui"
+    version: "0.9.4"
+    script: "build/webvr-ui.min.js"
+  - name: "webvr-polyfill"
+    src: "htmlwidgets/lib/webvr-polyfill"
+    script: "build/webvr-polyfill.js"
+    version: "0.10.2"
+  - name: "styles"
+    src: "htmlwidgets/lib/styles"
+    stylesheet: "webvrr.css"
+    version: "0.0.1"
