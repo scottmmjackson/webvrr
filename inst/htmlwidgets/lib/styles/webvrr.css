@@ -6,6 +6,10 @@
   text-align: center;
 }
 
+.vr-force-container > a {
+  color: white;
+}
+
 .vr-ui-container {
   text-align: center;
   top: -100px;

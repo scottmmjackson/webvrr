@@ -68,23 +68,6 @@ HTMLWidgets.widget({
       }
     });
 
-    const uiOptions = {
-      color: 'black',
-      background: 'white',
-      corners: 'square',
-    };
-
-    vrButton = new webvrui.EnterVRButton(renderer.domElement, uiOptions);
-
-    const uiContainer = document.createElement('div');
-    uiContainer.className = 'vr-ui-container';
-    const vrButtonContainer = document.createElement('div');
-    vrButtonContainer.id = 'vr-button';
-    vrButtonContainer.className = 'vr-button-container';
-    vrButtonContainer.appendChild(vrButton.domElement);
-    uiContainer.appendChild(vrButtonContainer);
-    el.appendChild(uiContainer);
-
     const onResize = (e) => {
       if (e && e.vrDisplay && e.vrDisplay.isPresenting) {
         effect.setSize(window.innerWidth, window.innerHeight);
@@ -96,6 +79,40 @@ HTMLWidgets.widget({
         camera.updateProjectionMatrix();
       }
     };
+
+    const uiOptions = {
+      color: 'black',
+      background: 'white',
+      corners: 'square',
+    };
+
+    vrButton = new webvrui.EnterVRButton(renderer.domElement, uiOptions);
+
+    const uiContainer = document.createElement('div');
+    uiContainer.className = 'vr-ui-container';
+
+    const vrButtonContainer = document.createElement('div');
+    vrButtonContainer.id = 'vr-button';
+    vrButtonContainer.className = 'vr-button-container';
+    vrButtonContainer.appendChild(vrButton.domElement);
+    uiContainer.appendChild(vrButtonContainer);
+
+    const vrForceContainer = document.createElement('div');
+    vrForceContainer.id = 'vr-force';
+    vrForceContainer.className = 'vr-force-container';
+    const vrForceLink = document.createElement('a');
+    vrForceLink.href = '#';
+    vrForceLink.innerText = 'Click Here To Try With A Browser';
+    vrForceLink.addEventListener('click', () => {
+      vrButton.requestEnterFullscreen().then(() => {
+        onResize({ vrDisplay: { isPresenting: true }});
+      });
+    });
+    vrForceContainer.appendChild(vrForceLink);
+    uiContainer.appendChild(vrForceContainer);
+
+    el.appendChild(uiContainer);
+
     window.addEventListener('vrdisplaypresentchange', onResize, true);
 
     return {
@@ -115,7 +132,7 @@ HTMLWidgets.widget({
           map: texture,
         });
         skybox = new THREE.Mesh(geometry, material);
-        skybox.position.y = 30 / 2;
+        // skybox.position.y = 30 / 2;
         scene.add(skybox);
         if (x) {
           if (x.sphere) {

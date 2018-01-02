@@ -179,23 +179,6 @@ _htmlwidgets2.default.widget({
       }
     });
 
-    var uiOptions = {
-      color: 'black',
-      background: 'white',
-      corners: 'square'
-    };
-
-    vrButton = new _webvrui2.default.EnterVRButton(renderer.domElement, uiOptions);
-
-    var uiContainer = _document2.default.createElement('div');
-    uiContainer.className = 'vr-ui-container';
-    var vrButtonContainer = _document2.default.createElement('div');
-    vrButtonContainer.id = 'vr-button';
-    vrButtonContainer.className = 'vr-button-container';
-    vrButtonContainer.appendChild(vrButton.domElement);
-    uiContainer.appendChild(vrButtonContainer);
-    el.appendChild(uiContainer);
-
     var onResize = function onResize(e) {
       if (e && e.vrDisplay && e.vrDisplay.isPresenting) {
         effect.setSize(_window2.default.innerWidth, _window2.default.innerHeight);
@@ -207,6 +190,40 @@ _htmlwidgets2.default.widget({
         camera.updateProjectionMatrix();
       }
     };
+
+    var uiOptions = {
+      color: 'black',
+      background: 'white',
+      corners: 'square'
+    };
+
+    vrButton = new _webvrui2.default.EnterVRButton(renderer.domElement, uiOptions);
+
+    var uiContainer = _document2.default.createElement('div');
+    uiContainer.className = 'vr-ui-container';
+
+    var vrButtonContainer = _document2.default.createElement('div');
+    vrButtonContainer.id = 'vr-button';
+    vrButtonContainer.className = 'vr-button-container';
+    vrButtonContainer.appendChild(vrButton.domElement);
+    uiContainer.appendChild(vrButtonContainer);
+
+    var vrForceContainer = _document2.default.createElement('div');
+    vrForceContainer.id = 'vr-force';
+    vrForceContainer.className = 'vr-force-container';
+    var vrForceLink = _document2.default.createElement('a');
+    vrForceLink.href = '#';
+    vrForceLink.innerText = 'Click Here To Try With A Browser';
+    vrForceLink.addEventListener('click', function () {
+      vrButton.requestEnterFullscreen().then(function () {
+        onResize({ vrDisplay: { isPresenting: true } });
+      });
+    });
+    vrForceContainer.appendChild(vrForceLink);
+    uiContainer.appendChild(vrForceContainer);
+
+    el.appendChild(uiContainer);
+
     _window2.default.addEventListener('vrdisplaypresentchange', onResize, true);
 
     return {
@@ -226,7 +243,7 @@ _htmlwidgets2.default.widget({
           map: texture
         });
         skybox = new _three2.default.Mesh(geometry, material);
-        skybox.position.y = 30 / 2;
+        // skybox.position.y = 30 / 2;
         scene.add(skybox);
         if (x) {
           if (x.sphere) {
