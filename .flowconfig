@@ -1,0 +1,14 @@
+[ignore]
+./
+
+[include]
+./javascript
+
+[libs]
+
+[lints]
+all = error
+
+[options]
+
+[strict]

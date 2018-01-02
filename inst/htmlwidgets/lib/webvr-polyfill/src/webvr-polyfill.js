@@ -14,138 +14,223 @@
  */
 
 var Util = require('./util.js');
-var CardboardVRDisplay = require('cardboard-vr-display');
-var VRDisplay = require('cardboard-vr-display/src/base.js').VRDisplay;
-var VRFrameData = require('cardboard-vr-display/src/base.js').VRFrameData;
-var version = require('../package.json').version;
-var DefaultConfig = require('./config');
+var CardboardVRDisplay = require('./cardboard-vr-display.js');
+var MouseKeyboardVRDisplay = require('./mouse-keyboard-vr-display.js');
+// Uncomment to add positional tracking via webcam.
+//var WebcamPositionSensorVRDevice = require('./webcam-position-sensor-vr-device.js');
+var VRDisplay = require('./base.js').VRDisplay;
+var VRFrameData = require('./base.js').VRFrameData;
+var HMDVRDevice = require('./base.js').HMDVRDevice;
+var PositionSensorVRDevice = require('./base.js').PositionSensorVRDevice;
+var VRDisplayHMDDevice = require('./display-wrappers.js').VRDisplayHMDDevice;
+var VRDisplayPositionSensorDevice = require('./display-wrappers.js').VRDisplayPositionSensorDevice;
 
-function WebVRPolyfill(config) {
-  this.config = Util.extend(Util.extend({}, DefaultConfig), config);
-  this.polyfillDisplays = [];
-  this.enabled = false;
+function WebVRPolyfill() {
+  this.displays = [];
+  this.devices = []; // For deprecated objects
+  this.devicesPopulated = false;
+  this.nativeWebVRAvailable = this.isWebVRAvailable();
+  this.nativeLegacyWebVRAvailable = this.isDeprecatedWebVRAvailable();
+  this.nativeGetVRDisplaysFunc = this.nativeWebVRAvailable ?
+                                 navigator.getVRDisplays :
+                                 null;
 
-  // Must handle this in constructor before we start
-  // destructively polyfilling `navigator`
-  this.hasNative = 'getVRDisplays' in navigator;
-  // Store initial references to native constructors
-  // and functions
-  this.native = {};
-  this.native.getVRDisplays = navigator.getVRDisplays;
-  this.native.VRFrameData = window.VRFrameData;
-  this.native.VRDisplay = window.VRDisplay;
-
-  // If we don't have native 1.1 support, or if we want to provide
-  // a CardboardVRDisplay in the event of native support with no displays,
-  // inject our own polyfill
-  if (!this.hasNative || this.config.PROVIDE_MOBILE_VRDISPLAY && Util.isMobile()) {
-    this.enable();
+  if (!this.nativeLegacyWebVRAvailable) {
+    this.enablePolyfill();
+    if (WebVRConfig.ENABLE_DEPRECATED_API) {
+      this.enableDeprecatedPolyfill();
+    }
   }
+
+  // Put a shim in place to update the API to 1.1 if needed.
+  InstallWebVRSpecShim();
 }
 
-WebVRPolyfill.prototype.getPolyfillDisplays = function() {
-  if (this._polyfillDisplaysPopulated) {
-    return this.polyfillDisplays;
-  }
-
-  // Add a Cardboard VRDisplay on compatible mobile devices
-  if (Util.isMobile()) {
-    var vrDisplay = new CardboardVRDisplay({
-      MOBILE_WAKE_LOCK:             this.config.MOBILE_WAKE_LOCK,
-      DEBUG:                        this.config.DEBUG,
-      DPDB_URL:                     this.config.DPDB_URL,
-      CARDBOARD_UI_DISABLED:        this.config.CARDBOARD_UI_DISABLED,
-      K_FILTER:                     this.config.K_FILTER,
-      PREDICTION_TIME_S:            this.config.PREDICTION_TIME_S,
-      TOUCH_PANNER_DISABLED:        this.config.TOUCH_PANNER_DISABLED,
-      ROTATE_INSTRUCTIONS_DISABLED: this.config.ROTATE_INSTRUCTIONS_DISABLED,
-      YAW_ONLY:                     this.config.YAW_ONLY,
-      BUFFER_SCALE:                 this.config.BUFFER_SCALE,
-      DIRTY_SUBMIT_FRAME_BINDINGS:  this.config.DIRTY_SUBMIT_FRAME_BINDINGS,
-    });
-
-    vrDisplay.fireVRDisplayConnect_();
-    this.polyfillDisplays.push(vrDisplay);
-  }
-
-  this._polyfillDisplaysPopulated = true;
-  return this.polyfillDisplays;
+WebVRPolyfill.prototype.isWebVRAvailable = function() {
+  return ('getVRDisplays' in navigator);
 };
 
-WebVRPolyfill.prototype.enable = function() {
-  this.enabled = true;
+WebVRPolyfill.prototype.isDeprecatedWebVRAvailable = function() {
+  return ('getVRDevices' in navigator) || ('mozGetVRDevices' in navigator);
+};
 
-  // Polyfill native VRDisplay.getFrameData when the platform
-  // has native WebVR support, but for use with a polyfilled
-  // CardboardVRDisplay
-  if (this.hasNative && this.native.VRFrameData) {
-    var NativeVRFrameData = this.native.VRFrameData;
-    var nativeFrameData = new this.native.VRFrameData();
-    var nativeGetFrameData = this.native.VRDisplay.prototype.getFrameData;
-
-    // When using a native display with a polyfilled VRFrameData
-    window.VRDisplay.prototype.getFrameData = function(frameData) {
-      // This should only be called in the event of code instantiating
-      // `window.VRFrameData` before the polyfill kicks in, which is
-      // unrecommended, but happens anyway
-      if (frameData instanceof NativeVRFrameData) {
-        nativeGetFrameData.call(this, frameData);
-        return;
-      }
-
-      /*
-      Copy frame data from the native object into the polyfilled object.
-      */
-
-      nativeGetFrameData.call(this, nativeFrameData);
-      frameData.pose = nativeFrameData.pose;
-      Util.copyArray(nativeFrameData.leftProjectionMatrix, frameData.leftProjectionMatrix);
-      Util.copyArray(nativeFrameData.rightProjectionMatrix, frameData.rightProjectionMatrix);
-      Util.copyArray(nativeFrameData.leftViewMatrix, frameData.leftViewMatrix);
-      Util.copyArray(nativeFrameData.rightViewMatrix, frameData.rightViewMatrix);
-      //todo: copy
-    };
+WebVRPolyfill.prototype.populateDevices = function() {
+  if (this.devicesPopulated) {
+    return;
   }
 
+  // Initialize our virtual VR devices.
+  var vrDisplay = null;
+
+  // Add a Cardboard VRDisplay on compatible mobile devices
+  if (this.isCardboardCompatible()) {
+    vrDisplay = new CardboardVRDisplay();
+    this.displays.push(vrDisplay);
+
+    // For backwards compatibility
+    if (WebVRConfig.ENABLE_DEPRECATED_API) {
+      this.devices.push(new VRDisplayHMDDevice(vrDisplay));
+      this.devices.push(new VRDisplayPositionSensorDevice(vrDisplay));
+    }
+  }
+
+  // Add a Mouse and Keyboard driven VRDisplay for desktops/laptops
+  if (!this.isMobile() && !WebVRConfig.MOUSE_KEYBOARD_CONTROLS_DISABLED) {
+    vrDisplay = new MouseKeyboardVRDisplay();
+    this.displays.push(vrDisplay);
+
+    // For backwards compatibility
+    if (WebVRConfig.ENABLE_DEPRECATED_API) {
+      this.devices.push(new VRDisplayHMDDevice(vrDisplay));
+      this.devices.push(new VRDisplayPositionSensorDevice(vrDisplay));
+    }
+  }
+
+  // Uncomment to add positional tracking via webcam.
+  //if (!this.isMobile() && WebVRConfig.ENABLE_DEPRECATED_API) {
+  //  positionDevice = new WebcamPositionSensorVRDevice();
+  //  this.devices.push(positionDevice);
+  //}
+
+  this.devicesPopulated = true;
+};
+
+WebVRPolyfill.prototype.enablePolyfill = function() {
   // Provide navigator.getVRDisplays.
   navigator.getVRDisplays = this.getVRDisplays.bind(this);
 
-  // Provide the `VRDisplay` object.
+  // Provide the VRDisplay object.
   window.VRDisplay = VRDisplay;
 
-  // Provide the VRFrameData object.
-  window.VRFrameData = VRFrameData;
+  // Provide navigator.vrEnabled.
+  var self = this;
+  Object.defineProperty(navigator, 'vrEnabled', {
+    get: function () {
+      return self.isCardboardCompatible() &&
+          (self.isFullScreenAvailable() || Util.isIOS());
+    }
+  });
+
+  if (!'VRFrameData' in window) {
+    // Provide the VRFrameData object.
+    window.VRFrameData = VRFrameData;
+  }
+};
+
+WebVRPolyfill.prototype.enableDeprecatedPolyfill = function() {
+  // Provide navigator.getVRDevices.
+  navigator.getVRDevices = this.getVRDevices.bind(this);
+
+  // Provide the CardboardHMDVRDevice and PositionSensorVRDevice objects.
+  window.HMDVRDevice = HMDVRDevice;
+  window.PositionSensorVRDevice = PositionSensorVRDevice;
 };
 
 WebVRPolyfill.prototype.getVRDisplays = function() {
-  this.getPolyfillDisplays();
-  var polyfillDisplays = this.polyfillDisplays;
-  var config = this.config;
+  this.populateDevices();
+  var polyfillDisplays = this.displays;
 
-  if (!this.hasNative) {
-    return Promise.resolve(polyfillDisplays);
+  if (this.nativeWebVRAvailable) {
+    return this.nativeGetVRDisplaysFunc.call(navigator).then(function(nativeDisplays) {
+      if (WebVRConfig.ALWAYS_APPEND_POLYFILL_DISPLAY) {
+        return nativeDisplays.concat(polyfillDisplays);
+      } else {
+        return nativeDisplays.length > 0 ? nativeDisplays : polyfillDisplays;
+      }
+    });
+  } else {
+    return new Promise(function(resolve, reject) {
+      try {
+        resolve(polyfillDisplays);
+      } catch (e) {
+        reject(e);
+      }
+    });
   }
+};
 
-  // Set up a race condition if this browser has a bug where
-  // `navigator.getVRDisplays()` never resolves.
-  var timeoutId;
-  var vrDisplaysNative = this.native.getVRDisplays.call(navigator);
-  var timeoutPromise = new Promise(function(resolve) {
-    timeoutId = setTimeout(function() {
-      console.warn('Native WebVR implementation detected, but `getVRDisplays()` failed to resolve. Falling back to polyfill.');
-      resolve([]);
-    }, config.GET_VR_DISPLAYS_TIMEOUT);
-  });
+WebVRPolyfill.prototype.getVRDevices = function() {
+  console.warn('getVRDevices is deprecated. Please update your code to use getVRDisplays instead.');
+  var self = this;
+  return new Promise(function(resolve, reject) {
+    try {
+      if (!self.devicesPopulated) {
+        if (self.nativeWebVRAvailable) {
+          return navigator.getVRDisplays(function(displays) {
+            for (var i = 0; i < displays.length; ++i) {
+              self.devices.push(new VRDisplayHMDDevice(displays[i]));
+              self.devices.push(new VRDisplayPositionSensorDevice(displays[i]));
+            }
+            self.devicesPopulated = true;
+            resolve(self.devices);
+          }, reject);
+        }
 
-  return Util.race([
-    vrDisplaysNative,
-    timeoutPromise
-  ]).then(function(nativeDisplays) {
-    clearTimeout(timeoutId);
-    return nativeDisplays.length > 0 ? nativeDisplays : polyfillDisplays;
+        if (self.nativeLegacyWebVRAvailable) {
+          return (navigator.getVRDDevices || navigator.mozGetVRDevices)(function(devices) {
+            for (var i = 0; i < devices.length; ++i) {
+              if (devices[i] instanceof HMDVRDevice) {
+                self.devices.push(devices[i]);
+              }
+              if (devices[i] instanceof PositionSensorVRDevice) {
+                self.devices.push(devices[i]);
+              }
+            }
+            self.devicesPopulated = true;
+            resolve(self.devices);
+          }, reject);
+        }
+      }
+
+      self.populateDevices();
+      resolve(self.devices);
+    } catch (e) {
+      reject(e);
+    }
   });
 };
 
-WebVRPolyfill.version = version;
+/**
+ * Determine if a device is mobile.
+ */
+WebVRPolyfill.prototype.isMobile = function() {
+  return /Android/i.test(navigator.userAgent) ||
+      /iPhone|iPad|iPod/i.test(navigator.userAgent);
+};
 
-module.exports = WebVRPolyfill;
+WebVRPolyfill.prototype.isCardboardCompatible = function() {
+  // For now, support all iOS and Android devices.
+  // Also enable the WebVRConfig.FORCE_VR flag for debugging.
+  return this.isMobile() || WebVRConfig.FORCE_ENABLE_VR;
+};
+
+WebVRPolyfill.prototype.isFullScreenAvailable = function() {
+  return (document.fullscreenEnabled ||
+          document.mozFullScreenEnabled ||
+          document.webkitFullscreenEnabled ||
+          false);
+};
+
+// Installs a shim that updates a WebVR 1.0 spec implementation to WebVR 1.1
+function InstallWebVRSpecShim() {
+  if ('VRDisplay' in window && !('VRFrameData' in window)) {
+    // Provide the VRFrameData object.
+    window.VRFrameData = VRFrameData;
+
+    // A lot of Chrome builds don't have depthNear and depthFar, even
+    // though they're in the WebVR 1.0 spec. Patch them in if they're not present.
+    if(!('depthNear' in window.VRDisplay.prototype)) {
+      window.VRDisplay.prototype.depthNear = 0.01;
+    }
+
+    if(!('depthFar' in window.VRDisplay.prototype)) {
+      window.VRDisplay.prototype.depthFar = 10000.0;
+    }
+
+    window.VRDisplay.prototype.getFrameData = function(frameData) {
+      return Util.frameDataFromPose(frameData, this.getPose(), this);
+    }
+  }
+};
+
+module.exports.WebVRPolyfill = WebVRPolyfill;

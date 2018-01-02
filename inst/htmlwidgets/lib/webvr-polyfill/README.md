@@ -1,70 +1,95 @@
 # WebVR Polyfill
 
-[![Build Status](http://img.shields.io/travis/googlevr/webvr-polyfill.svg?style=flat-square)](https://travis-ci.org/googlevr/webvr-polyfill)
-[![Build Status](http://img.shields.io/npm/v/webvr-polyfill.svg?style=flat-square)](https://www.npmjs.org/package/webvr-polyfill)
-
-A JavaScript implementation of the [WebVR spec][spec]. This project ensures
-your WebVR content works on any platform, whether or not the browser/device has
-native WebVR support, or when there are inconsistencies in implementation.
+A JavaScript implementation of the [WebVR spec][spec]. This project lets you use
+WebVR today, without requiring a [special][moz] [browser][cr] build. It also
+lets you view the same content without requiring a virtual reality viewer.
 
 Take a look at [basic WebVR samples][samples] that use this polyfill.
 
-## Installing
+[moz]: http://mozvr.com/
+[cr]: https://drive.google.com/folderview?id=0BzudLt22BqGRbW9WTHMtOWMzNjQ
+[samples]: https://toji.github.io/webvr-samples/
+[spec]: https://mozvr.github.io/webvr-spec/
 
-### Script
+## Implementation
 
-Download the build at [build/webvr-polyfill.js](build/webvr-polyfill.js) and include it as a script tag,
-or use a CDN. You can also use the minified file in the same location as `webvr-polyfill.min.js`.
+The polyfill decides which VRDisplays to provide, depending on the configuration
+of your browser. Mobile devices provide the `CardboardVRDisplay`. Desktop devices
+use the `MouseKeyboardVRDisplay`.
 
-```html
-  <script src='webvr-polyfill.js'></script>
-  <!-- or use a link to a CDN -->
-  <script src='https://cdn.jsdelivr.net/npm/webvr-polyfill@latest/build/webvr-polyfill.js'></script>
+`CardboardVRDisplay` uses DeviceMotionEvents to implement a complementary
+filter which does [sensor fusion and pose prediction][fusion] to provide
+orientation tracking. It can also render in stereo mode, and includes mesh-based
+lens distortion. This display also includes user interface elements in VR mode
+to make the VR experience more intuitive, including:
+
+- A gear icon to select your VR viewer.
+- A back button to exit VR mode.
+- An interstitial which only appears in portrait orientation, requesting you switch
+  into landscape orientation (if [orientation lock][ol] is not available).
+
+`MouseKeyboardVRDisplay` uses mouse events to allow you to do the equivalent of
+mouselook. It also uses keyboard arrows keys to look around the scene
+with the keyboard.
+
+[fusion]: http://smus.com/sensor-fusion-prediction-webvr/
+[ol]: https://www.w3.org/TR/screen-orientation/
+
+
+## Configuration
+
+The polyfill can be configured and debugged with various options. The following
+are supported:
+
+```javascript
+WebVRConfig = {
+  // Flag to disabled the UI in VR Mode.
+  CARDBOARD_UI_DISABLED: false, // Default: false
+
+  // Forces availability of VR mode, even for non-mobile devices.
+  FORCE_ENABLE_VR: true, // Default: false.
+
+  // Complementary filter coefficient. 0 for accelerometer, 1 for gyro.
+  K_FILTER: 0.98, // Default: 0.98.
+
+  // Flag to disable the instructions to rotate your device.
+  ROTATE_INSTRUCTIONS_DISABLED: false, // Default: false.
+
+  // How far into the future to predict during fast motion (in seconds).
+  PREDICTION_TIME_S: 0.040, // Default: 0.040.
+
+  // Flag to disable touch panner. In case you have your own touch controls.
+  TOUCH_PANNER_DISABLED: false, // Default: true.
+
+  // Enable yaw panning only, disabling roll and pitch. This can be useful
+  // for panoramas with nothing interesting above or below.
+  YAW_ONLY: true, // Default: false.
+
+  // To disable keyboard and mouse controls, if you want to use your own
+  // implementation.
+  MOUSE_KEYBOARD_CONTROLS_DISABLED: true, // Default: false.
+
+  // Prevent the polyfill from initializing immediately. Requires the app
+  // to call InitializeWebVRPolyfill() before it can be used.
+  DEFER_INITIALIZATION: true, // Default: false.
+
+  // Enable the deprecated version of the API (navigator.getVRDevices).
+  ENABLE_DEPRECATED_API: true, // Default: false.
+
+  // Scales the recommended buffer size reported by WebVR, which can improve
+  // performance.
+  BUFFER_SCALE: 0.5, // Default: 0.5.
+
+  // Allow VRDisplay.submitFrame to change gl bindings, which is more
+  // efficient if the application code will re-bind its resources on the
+  // next frame anyway. This has been seen to cause rendering glitches with
+  // THREE.js.
+  // Dirty bindings include: gl.FRAMEBUFFER_BINDING, gl.CURRENT_PROGRAM,
+  // gl.ARRAY_BUFFER_BINDING, gl.ELEMENT_ARRAY_BUFFER_BINDING,
+  // and gl.TEXTURE_BINDING_2D for texture unit 0.
+  DIRTY_SUBMIT_FRAME_BINDINGS: true // Default: false.
+}
 ```
-
-### npm
-
-If you're using a build tool like [browserify] or [webpack], install it via [npm].
-
-```
-$ npm install --save webvr-polyfill
-```
-
-## Using
-
-Instructions for using versions `>=0.10.0`. For `<=0.9.x` versions, see [0.9.40 tag](https://github.com/googlevr/webvr-polyfill/tree/v0.9.40).
-
-The webvr-polyfill exposes a single constructor, `WebVRPolyfill` that takes an
-object for configuration. See full configuration options at [src/config.js](src/config.js).
-
-Be sure to instantiate the polyfill before calling any of your VR code! The
-polyfill needs to patch the API if it does not exist so your content code can
-assume that the WebVR API will just work.
-
-If using script tags, a `WebVRPolyfill` global constructor will exist.
-
-```js
-var polyfill = new WebVRPolyfill();
-```
-
-In a modular ES6 world, import and instantiate the constructor similarly.
-
-```js
-import WebVRPolyfill from 'webvr-polyfill';
-const polyfill = WebVRPolyfill();
-```
-
-## Goals
-
-The polyfill's goal is to provide a library so that developers can create
-content targeting the WebVR API without worrying about what browsers and devices
-their users have in a world of growing, [but fragmented](caniuse) support.
-
-The three main components of the polyfill are:
-
-* Injects a [WebVR 1.1](spec) JavaScript implementation if one does not exist
-* Patches browsers that have an incomplete or inconsistent implementation of the API
-* Provide a synthesized [CardboardVRDisplay] on mobile when WebVR is not supported, or if it does have native support but no native VRDisplays and `PROVIDE_MOBILE_VRDISPLAY` is true (default).
 
 ## Performance
 
@@ -72,55 +97,20 @@ Performance is critical for VR. If you find your application is too sluggish,
 consider tweaking some of the above parameters. In particular, keeping
 `BUFFER_SCALE` at 0.5 (the default) will likely help a lot.
 
-## Developing
+## Development
 
-If you're interested in developing and contributing on the polyfill itself, you'll need to
-have [npm] installed and familiarize yourself with some commands below. For full list
-of commands available, see `package.json` scripts.
+If you'd like to contribute to the `webvr-poyfill` library, check out
+the repository and install
+[Node](https://nodejs.org/en/download/package-manager/) and the dependencies:
 
-```
-$ git clone git@github.com:googlevr/webvr-polyfill.git
-$ cd webvr-polyfill/
-
-# Install dependencies
-$ npm install
-
-# Build uncompressed JS file
-$ npm run build
-
-# Run tests
-$ npm test
-
-# Watch src/* directory and auto-rebuild on changes
-$ npm watch
+```bash
+git clone https://github.com/borismus/webvr-polyfill
+cd webvr-polyfill
+npm install
 ```
 
-### Testing
-
-Right now there are some unit tests in the configuration and logic for how things get polyfilled.
-Be sure to run tests before submitting any PRs, and bonus points for having new tests!
-
-```
-$ npm test
-```
-
-Due to the nature of the polyfill, be also sure to test the examples with your changes where appropriate.
-
-### Releasing a new version
-
-For maintainers only, to cut a new release for npm, use the [npm version] command. The `preversion`, `version` and `postversion` npm scripts will run tests, build, add built files and tag to git, push to github, and publish the new npm version.
-
-`npm version <semverstring>`
 
 ## License
 
 This program is free software for both commercial and non-commercial use,
-distributed under the [Apache 2.0 License](LICENSE).
-
-[samples]: https://webvr.info/samples/
-[npm]: https://www.npmjs.com
-[browserify]: http://browserify.org/
-[webpack]: https://webpack.github.io/
-[caniuse]: https://caniuse.com/#search=webvr
-[spec]: https://immersive-web.github.io/webvr/spec/1.1
-[CardboardVRDisplay]: https://github.com/googlevr/cardboard-vr-display
+distributed under the [Apache 2.0 License](COPYING).
