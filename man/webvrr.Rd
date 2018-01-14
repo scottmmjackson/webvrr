@@ -4,23 +4,15 @@
 \alias{webvrr}
 \title{Create a WebVR widget}
 \usage{
-webvrr(width = NULL, height = NULL, sphere = NULL)
+webvrr(width = NULL, height = NULL)
 }
 \arguments{
 \item{width}{The width of the viewport prior to entering vr mode}
 
 \item{height}{The height of the viewport prior to entering vr mode}
-
-\item{sphere}{Either a url or a base64 encoded `src` to be drawn on the sphere}
 }
 \description{
 This function creates a WebVR widget using \pkg{htmlwidgets}.
 It should work out of the box with RMarkdown, Shiny, or as a standalone call.
 Note that the rendering device must support the WebVR spec or it will fail.
-}
-\examples{
-webvrr(sphere =
-'https://upload.wikimedia.org/wikipedia/commons/8/83/Equirectangular_projection_SW.jpg'
-)
-
 }

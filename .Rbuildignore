@@ -16,4 +16,11 @@
 \.npmignore$
 \.babelrc$
 \.github$
-
+\.idea
+\.eslintignore$
+\.eslintrc.js$
+\.flowconfig$
+\.jscsrc$
+\rollup.config.js$
+^inst/htmlwidgets/lib/three.js/examples/js/(loaders|libs|lights|renderers|shaders|postprocessing|nodes|modifiers)
+^inst/htmlwidgets/lib/webvr-ui/examples

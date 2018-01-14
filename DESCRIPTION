@@ -1,7 +1,7 @@
 Package: webvrr
 Type: Package
 Title: WebVR For R
-Version: 0.0.1
+Version: 0.0.2
 Author: Scott Jackson <scottmmjackson@gmail.com>
 Maintainer: Scott Jackson <scottmmjackson@gmail.com>
 Description: Htmlwidget interface into the WebVR spec.
