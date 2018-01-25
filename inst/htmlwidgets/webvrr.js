@@ -228,8 +228,10 @@ function doCall(c, scene) {
             _heightSegments = c.heightSegments;
 
         var loadTex = void 0;
-        if (_texture === 'wireframe' || _texture !== null) {
+        var _color = void 0;
+        if (_texture === 'wireframe' || _texture === null || _texture === undefined) {
           loadTex = _wireframe2.default;
+          _color = 0x01BE00;
         } else if (_texture === 'target') {
           loadTex = _target2.default;
         } else {
@@ -238,7 +240,7 @@ function doCall(c, scene) {
         var geometry = new _three2.default.SphereGeometry(_radius, _widthSegments, _heightSegments);
         var material = new _three2.default.MeshBasicMaterial({
           map: new _three2.default.TextureLoader().load(loadTex),
-          color: 0x01BE00,
+          color: _color,
           side: _three2.default.BackSide
         });
         if (_repeat) {

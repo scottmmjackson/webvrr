@@ -171,8 +171,14 @@ function doCall(c: Call, scene: Scene) {
         texture, repeat, radius, widthSegments, heightSegments,
       } = c;
       let loadTex;
-      if (texture === 'wireframe' || texture !== null) {
+      let color;
+      if (
+        texture === 'wireframe' ||
+        texture === null ||
+        texture === undefined
+      ) {
         loadTex = wireframe;
+        color = 0x01BE00;
       } else if (texture === 'target') {
         loadTex = target;
       } else {
@@ -181,7 +187,7 @@ function doCall(c: Call, scene: Scene) {
       const geometry = new THREE.SphereGeometry(radius, widthSegments, heightSegments);
       const material = new THREE.MeshBasicMaterial({
         map: new THREE.TextureLoader().load(loadTex),
-        color: 0x01BE00,
+        color,
         side: THREE.BackSide,
       });
       if (repeat) {

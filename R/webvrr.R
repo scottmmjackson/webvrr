@@ -130,6 +130,7 @@ addInnerTexturedSphere <- function(
   if(`repeat` != FALSE) stopifnot(is.list(`repeat`))
   addToScene(vr, list(
     type = "innerTexturedSphere",
+    texture = texture,
     `repeat` = `repeat`,
     radius = radius,
     widthSegments = widthSegments,
